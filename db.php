@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-$dbHost = '127.0.0.1';
+$dbHost = 'localhost';
 $dbName = 'db_kalkulator';
 $dbUser = 'root';
 $dbPass = '';
