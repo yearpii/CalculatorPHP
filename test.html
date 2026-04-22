@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Test</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="shell">
+            <section class="panel calculator-panel">
+                <div class="display">
+                    <div class="display-expression" id="display-expression">Test 1 +</div>
+                    <div class="display-result" id="display-output">123</div>
+                </div>
+
+                <div style="margin-top: 20px; padding: 20px; border: 2px solid red;">
+                    <div style="margin-bottom: 10px;">
+                        <button class="key" data-value="1">Button 1</button>
+                        <button class="key" data-value="2">Button 2</button>
+                    </div>
+                    <div>
+                        <button class="key action" data-action="clear-all">Clear</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Page loaded');
+            var buttons = document.querySelectorAll('.key');
+            console.log('Found ' + buttons.length + ' buttons');
+            
+            buttons.forEach(function(btn, idx) {
+                btn.addEventListener('click', function() {
+                    console.log('Button ' + idx + ' clicked: ' + btn.textContent);
+                });
+            });
+        });
+    </script>
+</body>
+</html>

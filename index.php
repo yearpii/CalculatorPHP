@@ -123,33 +123,23 @@ $archives = $archiveStmt->fetchAll();
                 </div>
 
                 <div class="display">
-                    <div class="display-expression">
-                        <?= htmlspecialchars(($num1Value !== '' ? $num1Value : '0') . ' ' . $operatorValue . ' ' . ($num2Value !== '' ? $num2Value : '0'), ENT_QUOTES, 'UTF-8') ?>
-                    </div>
-                    <div class="display-result">
-                        <?= $result !== null ? htmlspecialchars(formatNumber((float) $result), ENT_QUOTES, 'UTF-8') : '0'; ?>
-                    </div>
+                    <div class="display-expression" id="display-expression"></div>
+                    <div class="display-result" id="display-output">0</div>
                 </div>
 
                 <form method="post" class="calc-form" id="calc-form">
-                    <div class="inputs">
-                        <label>
-                            Angka 1
-                            <input id="num1" type="text" inputmode="decimal" name="num1" placeholder="0" required value="<?= htmlspecialchars($num1Value, ENT_QUOTES, 'UTF-8') ?>">
-                        </label>
-                        <label>
-                            Angka 2
-                            <input id="num2" type="text" inputmode="decimal" name="num2" placeholder="0" required value="<?= htmlspecialchars($num2Value, ENT_QUOTES, 'UTF-8') ?>">
-                        </label>
-                    </div>
-
-                    <input type="hidden" name="operator" id="operator-input" value="<?= htmlspecialchars($operatorValue, ENT_QUOTES, 'UTF-8') ?>">
+                    <input type="hidden" name="num1" id="num1" value="">
+                    <input type="hidden" name="num2" id="num2" value="">
+                    <input type="hidden" name="operator" id="operator-input" value="">
 
                     <div class="keypad scientific-row scientific-only">
                         <button type="button" class="key muted" data-func="sin">sin</button>
                         <button type="button" class="key muted" data-func="cos">cos</button>
                         <button type="button" class="key muted" data-func="tan">tan</button>
                         <button type="button" class="key muted" data-func="log">log</button>
+                        <button type="button" class="key muted" data-func="reciprocal">⅓</button>
+                        <button type="button" class="key muted" data-func="square">x²</button>
+                        <button type="button" class="key muted" data-func="cbrt">∛x</button>
                     </div>
 
                     <div class="utility-row">
@@ -164,22 +154,22 @@ $archives = $archiveStmt->fetchAll();
                         <button type="button" class="key" data-value="7">7</button>
                         <button type="button" class="key" data-value="8">8</button>
                         <button type="button" class="key" data-value="9">9</button>
-                        <button type="button" class="key op-btn <?= $operatorValue === '/' ? 'active' : '' ?>" data-operator="/">&#247;</button>
+                        <button type="button" class="key op-btn" data-operator="/">&#247;</button>
 
                         <button type="button" class="key" data-value="4">4</button>
                         <button type="button" class="key" data-value="5">5</button>
                         <button type="button" class="key" data-value="6">6</button>
-                        <button type="button" class="key op-btn <?= $operatorValue === '*' ? 'active' : '' ?>" data-operator="*">&times;</button>
+                        <button type="button" class="key op-btn" data-operator="*">&times;</button>
 
                         <button type="button" class="key" data-value="1">1</button>
                         <button type="button" class="key" data-value="2">2</button>
                         <button type="button" class="key" data-value="3">3</button>
-                        <button type="button" class="key op-btn <?= $operatorValue === '-' ? 'active' : '' ?>" data-operator="-">-</button>
+                        <button type="button" class="key op-btn" data-operator="-">-</button>
 
                         <button type="button" class="key" data-value="0">0</button>
                         <button type="button" class="key" data-value=".">.</button>
                         <button type="submit" class="key equal">=</button>
-                        <button type="button" class="key op-btn <?= $operatorValue === '+' ? 'active' : '' ?>" data-operator="+">+</button>
+                        <button type="button" class="key op-btn" data-operator="+">+</button>
                     </div>
                 </form>
 

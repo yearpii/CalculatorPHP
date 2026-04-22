@@ -75,12 +75,26 @@ body {
     min-height: 124px;
     padding: 10px 0 14px;
     border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-end;
+    gap: 8px;
 }
 
 .display-expression {
     text-align: right;
     color: #75819b;
     font-size: 15px;
+    min-height: 20px;
+}
+
+#display-output {
+    text-align: right;
+    font-size: 44px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    width: 100%;
 }
 
 .display-result {
@@ -139,21 +153,6 @@ body {
     gap: 8px;
 }
 
-.op-btn {
-    border: 1px solid var(--border);
-    background: #111826;
-    color: #f4f6fc;
-    border-radius: 10px;
-    height: 42px;
-    font-size: 18px;
-    cursor: pointer;
-}
-
-.op-btn.active {
-    background: #1d3f90;
-    border-color: #356ae0;
-}
-
 .keypad {
     margin-top: 12px;
     display: grid;
@@ -161,21 +160,14 @@ body {
     gap: 8px;
 }
 
-.utility-row {
-    margin-top: 12px;
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 8px;
-}
-
 .scientific-row {
-    margin-top: 10px;
+    /* inherits grid from .keypad */
 }
 
 .scientific-only {
     opacity: 1;
     transform: translateY(0);
-    max-height: 120px;
+    max-height: 200px;
     overflow: hidden;
     transition: opacity 180ms ease, transform 180ms ease, max-height 180ms ease, margin 180ms ease;
 }
@@ -186,6 +178,13 @@ body {
     max-height: 0;
     margin-top: 0;
     pointer-events: none;
+}
+
+.utility-row {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
 }
 
 .calculator-panel.mode-switching {
@@ -212,16 +211,57 @@ body {
     font-size: 20px;
     min-height: 48px;
     cursor: pointer;
+    transition: all 120ms ease;
+    font-weight: 500;
 }
 
-.key:hover,
+.key:hover {
+    background: var(--btn-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.key:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.op-btn {
+    border: 1px solid var(--border);
+    background: #111826;
+    color: #f4f6fc;
+    border-radius: 10px;
+    height: 42px;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 120ms ease;
+}
+
 .op-btn:hover {
     background: var(--btn-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.op-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.op-btn.active {
+    background: #1d3f90;
+    border-color: #356ae0;
 }
 
 .key.action {
     background: #121b2f;
     color: #bfd0ff;
+}
+
+.key.action:hover {
+    background: #1a2847;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .key.muted {
@@ -230,10 +270,27 @@ body {
     font-size: 16px;
 }
 
+.key.muted:hover {
+    background: #1a2236;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
 .key.equal {
     background: var(--blue);
     border-color: #3f79ff;
     color: #fff;
+}
+
+.key.equal:hover {
+    background: #4578ff;
+    filter: brightness(1.1);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(45, 102, 246, 0.4);
+}
+
+.key.equal:active {
+    transform: translateY(0);
 }
 
 .message {
@@ -303,17 +360,33 @@ body {
     border-radius: 8px;
     padding: 7px 11px;
     cursor: pointer;
+    transition: all 120ms ease;
+    font-weight: 500;
+    font-size: 13px;
 }
 
-.history-clear-actions {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+.secondary-btn:hover {
+    background: #1a2538;
+    border-color: #3d4557;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.secondary-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .archive-btn {
     border-color: #5a2430;
     color: #ffd4dc;
+}
+
+.archive-btn:hover {
+    background: #1f2433;
+    border-color: #7a3450;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 .archive-action {

@@ -3,6 +3,9 @@ document.addEventListener('DOMContentLoaded', function () {
     var num1Input = document.getElementById('num1');
     var num2Input = document.getElementById('num2');
     var operatorInput = document.getElementById('operator-input');
+    var displayOutput = document.getElementById('display-output');
+    var displayExpression = document.getElementById('display-expression');
+    var calcForm = document.getElementById('calc-form');
     var operatorButtons = document.querySelectorAll('.op-btn');
     var keyButtons = document.querySelectorAll('.key[data-value]');
     var actionButtons = document.querySelectorAll('.key[data-action]');
@@ -12,27 +15,79 @@ document.addEventListener('DOMContentLoaded', function () {
     var calculatorPanel = document.querySelector('.calculator-panel');
     var historyTabs = document.querySelectorAll('.history-tab');
     var historyContents = document.querySelectorAll('.history-content');
-    var activeInput = num1Input;
     var currentMode = 'scientific';
 
-    if (num1Input && num2Input) {
-        num1Input.addEventListener('focus', function () {
-            activeInput = num1Input;
-        });
+    // Calculator state
+    var displayValue = '0';
+    var storedValue = null;
+    var currentOperator = null;
+    var shouldClearDisplay = false;
 
-        num2Input.addEventListener('focus', function () {
-            activeInput = num2Input;
-        });
-
-        if (num2Input.value !== '') {
-            activeInput = num2Input;
+    function updateDisplay() {
+        if (displayOutput) {
+            displayOutput.textContent = displayValue;
         }
     }
 
+    function updateExpression() {
+        if (displayExpression) {
+            if (storedValue !== null && currentOperator !== null) {
+                displayExpression.textContent = storedValue + ' ' + currentOperator;
+            } else {
+                displayExpression.textContent = '';
+            }
+        }
+    }
+
+    function setDisplayValue(value) {
+        displayValue = String(value);
+        updateDisplay();
+    }
+
+    function appendToDisplay(value) {
+        if (displayValue === '0' && value !== '.') {
+            displayValue = value;
+        } else if (value === '.' && displayValue.indexOf('.') === -1) {
+            displayValue += value;
+        } else if (value !== '.') {
+            displayValue += value;
+        }
+        updateDisplay();
+    }
+
     operatorButtons.forEach(function (button) {
-        button.addEventListener('click', function () {
+        button.addEventListener('click', function (e) {
+            e.preventDefault();
             var selectedOperator = button.getAttribute('data-operator') || '+';
-            operatorInput.value = selectedOperator;
+            
+            // If we have a stored value and current display value, calculate the result
+            if (storedValue !== null && currentOperator !== null && !shouldClearDisplay) {
+                var num1 = Number(storedValue);
+                var num2 = Number(displayValue);
+                var result = num1;
+                
+                if (currentOperator === '+') result = num1 + num2;
+                else if (currentOperator === '-') result = num1 - num2;
+                else if (currentOperator === '*') result = num1 * num2;
+                else if (currentOperator === '/') {
+                    if (num2 === 0) {
+                        setDisplayValue('Error');
+                        return;
+                    }
+                    result = num1 / num2;
+                }
+                
+                setDisplayValue(result);
+                storedValue = String(result);
+            } else {
+                storedValue = displayValue;
+            }
+            
+            currentOperator = selectedOperator;
+            shouldClearDisplay = true;
+            updateExpression();
+            
+            // Update active operator button
             operatorButtons.forEach(function (btn) {
                 btn.classList.remove('active');
             });
@@ -42,18 +97,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
     keyButtons.forEach(function (button) {
         button.addEventListener('click', function () {
-            if (!activeInput) {
-                return;
-            }
-
             var value = button.getAttribute('data-value') || '';
-            if (value === '.' && activeInput.value.indexOf('.') !== -1) {
+            
+            if (shouldClearDisplay) {
+                displayValue = '0';
+                shouldClearDisplay = false;
+            }
+            
+            if (value === '.' && displayValue.indexOf('.') !== -1) {
                 return;
             }
-
-            activeInput.value += value;
-            activeInput.dispatchEvent(new Event('input', { bubbles: true }));
-            activeInput.focus();
+            
+            appendToDisplay(value);
         });
     });
 
@@ -90,12 +145,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-            if (!activeInput || activeInput.value.trim() === '') {
+            if (displayValue.trim() === '' || displayValue === '0') {
                 return;
             }
 
             var fn = button.getAttribute('data-func');
-            var source = Number(activeInput.value);
+            var source = Number(displayValue);
             if (Number.isNaN(source)) {
                 return;
             }
@@ -112,47 +167,76 @@ document.addEventListener('DOMContentLoaded', function () {
                     return;
                 }
                 result = Math.log10(source);
+            } else if (fn === 'reciprocal') {
+                if (source === 0) {
+                    setDisplayValue('Error');
+                    return;
+                }
+                result = 1 / source;
+            } else if (fn === 'square') {
+                result = source * source;
+            } else if (fn === 'cbrt') {
+                result = Math.cbrt(source);
             }
 
-            activeInput.value = String(Number(result.toFixed(10)));
-            activeInput.dispatchEvent(new Event('input', { bubbles: true }));
+            setDisplayValue(Number(result.toFixed(10)));
         });
     });
 
     actionButtons.forEach(function (button) {
-        button.addEventListener('click', function () {
-            if (!num1Input || !num2Input) {
-                return;
-            }
-
+        button.addEventListener('click', function (e) {
             var action = button.getAttribute('data-action');
-            if (action === 'backspace' && activeInput) {
-                activeInput.value = activeInput.value.slice(0, -1);
+            
+            if (action === 'backspace') {
+                displayValue = displayValue.slice(0, -1) || '0';
+                updateDisplay();
             }
 
-            if (action === 'clear-input' && activeInput) {
-                activeInput.value = '';
+            if (action === 'clear-input') {
+                displayValue = '0';
+                updateDisplay();
             }
 
             if (action === 'clear-all') {
-                num1Input.value = '';
-                num2Input.value = '';
+                displayValue = '0';
+                storedValue = null;
+                currentOperator = null;
+                shouldClearDisplay = false;
+                operatorButtons.forEach(function (btn) {
+                    btn.classList.remove('active');
+                });
+                updateDisplay();
+                updateExpression();
             }
 
-            if (action === 'swap') {
-                var temp = num1Input.value;
-                num1Input.value = num2Input.value;
-                num2Input.value = temp;
-            }
-
-            if (action === 'percent' && activeInput) {
-                var percentValue = Number(activeInput.value);
+            if (action === 'percent') {
+                var percentValue = Number(displayValue);
                 if (!Number.isNaN(percentValue)) {
-                    activeInput.value = String(Number((percentValue / 100).toFixed(10)));
+                    setDisplayValue(Number((percentValue / 100).toFixed(10)));
                 }
             }
         });
     });
+
+    // Handle form submission (equals button)
+    if (calcForm) {
+        calcForm.addEventListener('submit', function (e) {
+            if (storedValue !== null && currentOperator !== null) {
+                num1Input.value = storedValue;
+                num2Input.value = displayValue;
+                operatorInput.value = currentOperator;
+                
+                // Reset calculator state
+                storedValue = null;
+                currentOperator = null;
+                shouldClearDisplay = false;
+                operatorButtons.forEach(function (btn) {
+                    btn.classList.remove('active');
+                });
+                updateExpression();
+            }
+        });
+    }
 
     historyTabs.forEach(function (tab) {
         tab.addEventListener('click', function () {
@@ -182,12 +266,34 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     document.addEventListener('keydown', function (event) {
-        if (!activeInput) {
-            return;
-        }
-
         if (event.key >= '0' && event.key <= '9') {
-            activeInput.focus();
+            if (shouldClearDisplay) {
+                displayValue = '0';
+                shouldClearDisplay = false;
+            }
+            appendToDisplay(event.key);
+        } else if (event.key === '.') {
+            if (shouldClearDisplay) {
+                displayValue = '0';
+                shouldClearDisplay = false;
+            }
+            if (displayValue.indexOf('.') === -1) {
+                appendToDisplay('.');
+            }
+        } else if (event.key === '+' || event.key === '-' || event.key === '*' || event.key === '/') {
+            event.preventDefault();
+            var btn = document.querySelector('.op-btn[data-operator="' + event.key + '"]');
+            if (btn) btn.click();
+        } else if (event.key === 'Enter') {
+            event.preventDefault();
+            if (calcForm) calcForm.dispatchEvent(new Event('submit'));
+        } else if (event.key === 'Backspace') {
+            event.preventDefault();
+            displayValue = displayValue.slice(0, -1) || '0';
+            updateDisplay();
         }
     });
+
+    // Initialize display
+    updateDisplay();
 });
