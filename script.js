@@ -3,6 +3,8 @@ document.addEventListener('DOMContentLoaded', function () {
     var num1Input = document.getElementById('num1');
     var num2Input = document.getElementById('num2');
     var operatorInput = document.getElementById('operator-input');
+    var expressionInput = document.getElementById('expression-input');
+    var expressionResultInput = document.getElementById('expression-result-input');
     var displayOutput = document.getElementById('display-output');
     var displayExpression = document.getElementById('display-expression');
     var calcForm = document.getElementById('calc-form');
@@ -16,6 +18,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var historyTabs = document.querySelectorAll('.history-tab');
     var historyContents = document.querySelectorAll('.history-content');
     var currentMode = 'scientific';
+    var modeStorageKey = 'calculator-mode';
 
     // Calculator state
     var displayValue = '0';
@@ -27,11 +30,14 @@ document.addEventListener('DOMContentLoaded', function () {
         if (displayOutput) {
             displayOutput.textContent = displayValue;
         }
+        updateExpression();
     }
 
     function updateExpression() {
         if (displayExpression) {
-            if (storedValue !== null && currentOperator !== null) {
+            if (/[()a-zA-Z]/.test(displayValue)) {
+                displayExpression.textContent = displayValue;
+            } else if (storedValue !== null && currentOperator !== null) {
                 displayExpression.textContent = storedValue + ' ' + currentOperator;
             } else {
                 displayExpression.textContent = '';
@@ -42,6 +48,61 @@ document.addEventListener('DOMContentLoaded', function () {
     function setDisplayValue(value) {
         displayValue = String(value);
         updateDisplay();
+    }
+
+    function parseDisplayNumber(raw) {
+        var normalized = String(raw).trim();
+        if (normalized === '' || normalized === '-' || normalized === '.') {
+            return Number.NaN;
+        }
+        return Number(normalized);
+    }
+
+    function isExpressionModeValue(value) {
+        return /[()a-zA-Z]/.test(value);
+    }
+
+    function evaluateExpression(rawExpression) {
+        var compact = String(rawExpression).replace(/\s+/g, '');
+        if (compact === '') {
+            return null;
+        }
+        if (!/^[0-9+\-*/^().a-zA-Z]+$/.test(compact)) {
+            return null;
+        }
+
+        var normalized = compact
+            .replace(/sqrt\(/gi, 'Math.sqrt(')
+            .replace(/(\d|\))\(/g, '$1*(')
+            .replace(/(\d|\))Math\.sqrt\(/g, '$1*Math.sqrt(')
+            .replace(/\)(\d)/g, ')*$1')
+            .replace(/\^/g, '**');
+
+        try {
+            var computed = Function('"use strict"; return (' + normalized + ');')();
+            if (typeof computed !== 'number' || !Number.isFinite(computed)) {
+                return null;
+            }
+            return Number(computed.toFixed(10));
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function calculateBinary(num1, num2, operator) {
+        if (operator === '+') return num1 + num2;
+        if (operator === '-') return num1 - num2;
+        if (operator === '*') return num1 * num2;
+        if (operator === '/') {
+            if (num2 === 0) return null;
+            return num1 / num2;
+        }
+        if (operator === '^') {
+            var powerResult = Math.pow(num1, num2);
+            if (!Number.isFinite(powerResult)) return null;
+            return powerResult;
+        }
+        return null;
     }
 
     function appendToDisplay(value) {
@@ -55,30 +116,71 @@ document.addEventListener('DOMContentLoaded', function () {
         updateDisplay();
     }
 
+    function countChar(source, char) {
+        var total = 0;
+        for (var i = 0; i < source.length; i += 1) {
+            if (source.charAt(i) === char) {
+                total += 1;
+            }
+        }
+        return total;
+    }
+
+    function appendFunctionTemplate(template) {
+        if (shouldClearDisplay) {
+            displayValue = '0';
+            shouldClearDisplay = false;
+        }
+
+        if (displayValue === '0') {
+            displayValue = template;
+        } else if (/[0-9)]$/.test(displayValue)) {
+            displayValue += '*' + template;
+        } else {
+            displayValue += template;
+        }
+        updateDisplay();
+    }
+
     operatorButtons.forEach(function (button) {
         button.addEventListener('click', function (e) {
             e.preventDefault();
             var selectedOperator = button.getAttribute('data-operator') || '+';
+            var expressionTyping = isExpressionModeValue(displayValue);
+
+            if (expressionTyping) {
+                if (shouldClearDisplay) {
+                    displayValue = '0';
+                    shouldClearDisplay = false;
+                }
+                if (displayValue === '0' && selectedOperator === '-') {
+                    displayValue = '-';
+                } else if (displayValue !== '0') {
+                    displayValue += selectedOperator;
+                }
+                operatorButtons.forEach(function (btn) {
+                    btn.classList.remove('active');
+                });
+                currentOperator = null;
+                storedValue = null;
+                updateExpression();
+                updateDisplay();
+                return;
+            }
             
             // If we have a stored value and current display value, calculate the result
             if (storedValue !== null && currentOperator !== null && !shouldClearDisplay) {
-                var num1 = Number(storedValue);
-                var num2 = Number(displayValue);
-                var result = num1;
-                
-                if (currentOperator === '+') result = num1 + num2;
-                else if (currentOperator === '-') result = num1 - num2;
-                else if (currentOperator === '*') result = num1 * num2;
-                else if (currentOperator === '/') {
-                    if (num2 === 0) {
-                        setDisplayValue('Error');
-                        return;
-                    }
-                    result = num1 / num2;
+                var num1 = parseDisplayNumber(storedValue);
+                var num2 = parseDisplayNumber(displayValue);
+                var result = calculateBinary(num1, num2, currentOperator);
+                if (Number.isNaN(num1) || Number.isNaN(num2) || result === null) {
+                    setDisplayValue('Error');
+                    return;
                 }
-                
-                setDisplayValue(result);
-                storedValue = String(result);
+
+                var roundedResult = Number(result.toFixed(10));
+                setDisplayValue(roundedResult);
+                storedValue = String(roundedResult);
             } else {
                 storedValue = displayValue;
             }
@@ -129,6 +231,12 @@ document.addEventListener('DOMContentLoaded', function () {
             void calculatorPanel.offsetWidth;
             calculatorPanel.classList.add('mode-switching');
         }
+
+        try {
+            window.localStorage.setItem(modeStorageKey, currentMode);
+        } catch (error) {
+            // Abaikan jika localStorage tidak tersedia.
+        }
     }
 
     calcTabs.forEach(function (tab) {
@@ -137,7 +245,16 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    setCalcMode('scientific');
+    var initialMode = 'scientific';
+    try {
+        var savedMode = window.localStorage.getItem(modeStorageKey);
+        if (savedMode === 'standard' || savedMode === 'scientific') {
+            initialMode = savedMode;
+        }
+    } catch (error) {
+        // Abaikan jika localStorage tidak tersedia.
+    }
+    setCalcMode(initialMode);
 
     functionButtons.forEach(function (button) {
         button.addEventListener('click', function () {
@@ -145,12 +262,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
+            var fn = button.getAttribute('data-func');
+            if (fn === 'reciprocal') {
+                appendFunctionTemplate('1/(');
+                return;
+            }
+            if (fn === 'sqrt') {
+                appendFunctionTemplate('sqrt(');
+                return;
+            }
+
             if (displayValue.trim() === '' || displayValue === '0') {
                 return;
             }
 
-            var fn = button.getAttribute('data-func');
-            var source = Number(displayValue);
+            var source = parseDisplayNumber(displayValue);
             if (Number.isNaN(source)) {
                 return;
             }
@@ -173,8 +299,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     return;
                 }
                 result = 1 / source;
-            } else if (fn === 'square') {
-                result = source * source;
             } else if (fn === 'cbrt') {
                 result = Math.cbrt(source);
             }
@@ -210,9 +334,31 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             if (action === 'percent') {
-                var percentValue = Number(displayValue);
+                var percentValue = parseDisplayNumber(displayValue);
                 if (!Number.isNaN(percentValue)) {
                     setDisplayValue(Number((percentValue / 100).toFixed(10)));
+                }
+            }
+
+            if (action === 'open-paren') {
+                if (shouldClearDisplay) {
+                    displayValue = '0';
+                    shouldClearDisplay = false;
+                }
+                if (displayValue === '0') {
+                    displayValue = '(';
+                } else {
+                    displayValue += '(';
+                }
+                updateDisplay();
+            }
+
+            if (action === 'close-paren') {
+                var openCount = countChar(displayValue, '(');
+                var closeCount = countChar(displayValue, ')');
+                if (openCount > closeCount) {
+                    displayValue += ')';
+                    updateDisplay();
                 }
             }
         });
@@ -221,9 +367,53 @@ document.addEventListener('DOMContentLoaded', function () {
     // Handle form submission (equals button)
     if (calcForm) {
         calcForm.addEventListener('submit', function (e) {
+            if (expressionInput) {
+                expressionInput.value = '';
+            }
+            if (expressionResultInput) {
+                expressionResultInput.value = '';
+            }
+
+            if (isExpressionModeValue(displayValue)) {
+                var originalExpression = displayValue;
+                var evaluated = evaluateExpression(originalExpression);
+                if (evaluated === null) {
+                    e.preventDefault();
+                    setDisplayValue('Error');
+                    return;
+                }
+
+                setDisplayValue(evaluated);
+                if (expressionInput) {
+                    expressionInput.value = originalExpression;
+                }
+                if (expressionResultInput) {
+                    expressionResultInput.value = String(evaluated);
+                }
+                num1Input.value = '';
+                num2Input.value = '';
+                operatorInput.value = '';
+                storedValue = null;
+                currentOperator = null;
+                shouldClearDisplay = false;
+                operatorButtons.forEach(function (btn) {
+                    btn.classList.remove('active');
+                });
+                updateExpression();
+                return;
+            }
+
             if (storedValue !== null && currentOperator !== null) {
-                num1Input.value = storedValue;
-                num2Input.value = displayValue;
+                var submitNum1 = parseDisplayNumber(storedValue);
+                var submitNum2 = parseDisplayNumber(displayValue);
+                if (Number.isNaN(submitNum1) || Number.isNaN(submitNum2)) {
+                    e.preventDefault();
+                    setDisplayValue('Error');
+                    return;
+                }
+
+                num1Input.value = String(submitNum1);
+                num2Input.value = String(submitNum2);
                 operatorInput.value = currentOperator;
                 
                 // Reset calculator state
@@ -280,7 +470,15 @@ document.addEventListener('DOMContentLoaded', function () {
             if (displayValue.indexOf('.') === -1) {
                 appendToDisplay('.');
             }
-        } else if (event.key === '+' || event.key === '-' || event.key === '*' || event.key === '/') {
+        } else if (event.key === '(') {
+            event.preventDefault();
+            var openParenBtn = document.querySelector('.key[data-action="open-paren"]');
+            if (openParenBtn) openParenBtn.click();
+        } else if (event.key === ')') {
+            event.preventDefault();
+            var closeParenBtn = document.querySelector('.key[data-action="close-paren"]');
+            if (closeParenBtn) closeParenBtn.click();
+        } else if (event.key === '+' || event.key === '-' || event.key === '*' || event.key === '/' || event.key === '^') {
             event.preventDefault();
             var btn = document.querySelector('.op-btn[data-operator="' + event.key + '"]');
             if (btn) btn.click();

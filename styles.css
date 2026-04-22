@@ -164,6 +164,12 @@ body {
     /* inherits grid from .keypad */
 }
 
+.scientific-row .op-btn {
+    min-height: 48px;
+    height: auto;
+    font-size: 16px;
+}
+
 .scientific-only {
     opacity: 1;
     transform: translateY(0);
@@ -353,6 +359,22 @@ body {
     font-weight: 600;
 }
 
+.history-clear-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: min(100%, 260px);
+}
+
+.history-clear-actions form {
+    margin: 0;
+}
+
+.history-clear-actions .secondary-btn {
+    width: 100%;
+    white-space: nowrap;
+}
+
 .secondary-btn {
     border: 1px solid #2d3547;
     background: #141b29;
@@ -463,5 +485,10 @@ body {
 
     .inputs {
         grid-template-columns: 1fr;
+    }
+
+    .history-clear-actions {
+        grid-template-columns: 1fr;
+        width: 100%;
     }
 }

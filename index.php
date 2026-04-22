@@ -23,6 +23,18 @@ try {
     // Kolom sudah ada, aman diabaikan.
 }
 
+try {
+    $pdo->exec('ALTER TABLE riwayat_kalkulator ADD COLUMN expression_text VARCHAR(255) NULL');
+} catch (PDOException $e) {
+    // Kolom sudah ada, aman diabaikan.
+}
+
+try {
+    $pdo->exec("ALTER TABLE riwayat_kalkulator MODIFY COLUMN `operator` VARCHAR(10) NOT NULL DEFAULT '+'");
+} catch (PDOException $e) {
+    // Jika tipe kolom sudah sesuai, aman diabaikan.
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['clear_history'])) {
         $stmt = $pdo->prepare('DELETE FROM riwayat_kalkulator WHERE archived = 0');
@@ -51,6 +63,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $messageType = 'success';
         }
     } else {
+        $expressionRaw = trim((string) ($_POST['expression'] ?? ''));
+        $expressionResultRaw = trim((string) ($_POST['expression_result'] ?? ''));
+
+        if ($expressionRaw !== '') {
+            $expressionNormalized = preg_replace('/sqrt/i', '', $expressionRaw);
+            $expressionValid = $expressionNormalized !== null
+                && preg_match('/^[0-9+\-*\/^().\s]+$/', $expressionNormalized) === 1;
+            $expressionResult = filter_var($expressionResultRaw, FILTER_VALIDATE_FLOAT);
+            if (!$expressionValid || $expressionResult === false || !is_finite((float) $expressionResult)) {
+                $message = 'Ekspresi tidak valid.';
+                $messageType = 'error';
+            } else {
+                try {
+                    $stmt = $pdo->prepare(
+                        'INSERT INTO riwayat_kalkulator (angka_1, operator, angka_2, hasil, expression_text) VALUES (?, ?, ?, ?, ?)'
+                    );
+                    $stmt->execute([0, '+', 0, (float) $expressionResult, mb_substr($expressionRaw, 0, 255)]);
+                    $result = (float) $expressionResult;
+                    $message = 'Perhitungan berhasil disimpan.';
+                    $messageType = 'success';
+                } catch (PDOException $e) {
+                    $message = 'Gagal menyimpan riwayat. Coba refresh lalu hitung ulang.';
+                    $messageType = 'error';
+                }
+            }
+        } else {
         $num1Raw = trim((string) ($_POST['num1'] ?? ''));
         $num2Raw = trim((string) ($_POST['num2'] ?? ''));
         $num1Value = $num1Raw;
@@ -83,19 +121,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $result = $num1 / $num2;
                     }
                     break;
+                case '^':
+                    $result = $num1 ** $num2;
+                    if (!is_finite($result)) {
+                        $result = null;
+                        $message = 'Hasil perhitungan tidak valid.';
+                        $messageType = 'error';
+                    }
+                    break;
                 default:
                     $message = 'Operator tidak valid.';
                     $messageType = 'error';
             }
 
             if ($result !== null) {
-                $stmt = $pdo->prepare(
-                    'INSERT INTO riwayat_kalkulator (angka_1, operator, angka_2, hasil) VALUES (?, ?, ?, ?)'
-                );
-                $stmt->execute([$num1, $operator, $num2, $result]);
-                $message = 'Perhitungan berhasil disimpan.';
-                $messageType = 'success';
+                try {
+                    $stmt = $pdo->prepare(
+                        'INSERT INTO riwayat_kalkulator (angka_1, operator, angka_2, hasil, expression_text) VALUES (?, ?, ?, ?, ?)'
+                    );
+                    $stmt->execute([$num1, $operator, $num2, $result, null]);
+                    $message = 'Perhitungan berhasil disimpan.';
+                    $messageType = 'success';
+                } catch (PDOException $e) {
+                    $message = 'Gagal menyimpan riwayat. Coba refresh lalu hitung ulang.';
+                    $messageType = 'error';
+                }
             }
+        }
         }
     }
 }
@@ -131,22 +183,25 @@ $archives = $archiveStmt->fetchAll();
                     <input type="hidden" name="num1" id="num1" value="">
                     <input type="hidden" name="num2" id="num2" value="">
                     <input type="hidden" name="operator" id="operator-input" value="">
+                    <input type="hidden" name="expression" id="expression-input" value="">
+                    <input type="hidden" name="expression_result" id="expression-result-input" value="">
 
                     <div class="keypad scientific-row scientific-only">
                         <button type="button" class="key muted" data-func="sin">sin</button>
                         <button type="button" class="key muted" data-func="cos">cos</button>
                         <button type="button" class="key muted" data-func="tan">tan</button>
                         <button type="button" class="key muted" data-func="log">log</button>
-                        <button type="button" class="key muted" data-func="reciprocal">⅓</button>
-                        <button type="button" class="key muted" data-func="square">x²</button>
+                        <button type="button" class="key muted" data-func="reciprocal">1/x</button>
+                        <button type="button" class="key muted op-btn" data-operator="^">xʸ</button>
                         <button type="button" class="key muted" data-func="cbrt">∛x</button>
+                        <button type="button" class="key muted" data-func="sqrt">√x</button>
                     </div>
 
                     <div class="utility-row">
                         <button type="button" class="key action" data-action="clear-all">C</button>
                         <button type="button" class="key action" data-action="backspace">DEL</button>
-                        <button type="button" class="key action" data-action="noop">(</button>
-                        <button type="button" class="key action" data-action="noop">)</button>
+                        <button type="button" class="key action" data-action="open-paren">(</button>
+                        <button type="button" class="key action" data-action="close-paren">)</button>
                         <button type="button" class="key action" data-action="percent">%</button>
                     </div>
 
@@ -166,8 +221,8 @@ $archives = $archiveStmt->fetchAll();
                         <button type="button" class="key" data-value="3">3</button>
                         <button type="button" class="key op-btn" data-operator="-">-</button>
 
-                        <button type="button" class="key" data-value="0">0</button>
                         <button type="button" class="key" data-value=".">.</button>
+                        <button type="button" class="key" data-value="0">0</button>
                         <button type="submit" class="key equal">=</button>
                         <button type="button" class="key op-btn" data-operator="+">+</button>
                     </div>
@@ -205,9 +260,13 @@ $archives = $archiveStmt->fetchAll();
                         <?php foreach ($histories as $row): ?>
                             <article class="history-item">
                                 <p class="expr">
-                                    <?= htmlspecialchars(formatNumber((float) $row['angka_1']), ENT_QUOTES, 'UTF-8') ?>
-                                    <?= htmlspecialchars((string) $row['operator'], ENT_QUOTES, 'UTF-8') ?>
-                                    <?= htmlspecialchars(formatNumber((float) $row['angka_2']), ENT_QUOTES, 'UTF-8') ?>
+                                    <?php if (!empty($row['expression_text'])): ?>
+                                        <?= htmlspecialchars((string) $row['expression_text'], ENT_QUOTES, 'UTF-8') ?>
+                                    <?php else: ?>
+                                        <?= htmlspecialchars(formatNumber((float) $row['angka_1']), ENT_QUOTES, 'UTF-8') ?>
+                                        <?= htmlspecialchars((string) $row['operator'], ENT_QUOTES, 'UTF-8') ?>
+                                        <?= htmlspecialchars(formatNumber((float) $row['angka_2']), ENT_QUOTES, 'UTF-8') ?>
+                                    <?php endif; ?>
                                 </p>
                                 <p class="res">= <?= htmlspecialchars(formatNumber((float) $row['hasil']), ENT_QUOTES, 'UTF-8') ?></p>
                                 <time><?= htmlspecialchars((string) $row['created_at'], ENT_QUOTES, 'UTF-8') ?></time>
@@ -227,9 +286,13 @@ $archives = $archiveStmt->fetchAll();
                         <?php foreach ($archives as $row): ?>
                             <article class="history-item">
                                 <p class="expr">
-                                    <?= htmlspecialchars(formatNumber((float) $row['angka_1']), ENT_QUOTES, 'UTF-8') ?>
-                                    <?= htmlspecialchars((string) $row['operator'], ENT_QUOTES, 'UTF-8') ?>
-                                    <?= htmlspecialchars(formatNumber((float) $row['angka_2']), ENT_QUOTES, 'UTF-8') ?>
+                                    <?php if (!empty($row['expression_text'])): ?>
+                                        <?= htmlspecialchars((string) $row['expression_text'], ENT_QUOTES, 'UTF-8') ?>
+                                    <?php else: ?>
+                                        <?= htmlspecialchars(formatNumber((float) $row['angka_1']), ENT_QUOTES, 'UTF-8') ?>
+                                        <?= htmlspecialchars((string) $row['operator'], ENT_QUOTES, 'UTF-8') ?>
+                                        <?= htmlspecialchars(formatNumber((float) $row['angka_2']), ENT_QUOTES, 'UTF-8') ?>
+                                    <?php endif; ?>
                                 </p>
                                 <p class="res">= <?= htmlspecialchars(formatNumber((float) $row['hasil']), ENT_QUOTES, 'UTF-8') ?></p>
                                 <time><?= htmlspecialchars((string) $row['created_at'], ENT_QUOTES, 'UTF-8') ?></time>
