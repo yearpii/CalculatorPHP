@@ -87,6 +87,7 @@ body {
     color: #75819b;
     font-size: 15px;
     min-height: 20px;
+    word-break: break-all;
 }
 
 #display-output {
@@ -95,6 +96,7 @@ body {
     font-weight: 600;
     letter-spacing: 0.4px;
     width: 100%;
+    word-break: break-all;
 }
 
 .display-result {
@@ -103,6 +105,7 @@ body {
     font-weight: 600;
     letter-spacing: 0.4px;
     margin-top: 8px;
+    word-break: break-all;
 }
 
 .calc-form {
@@ -449,6 +452,7 @@ body {
     margin: 0;
     color: #9ba6bd;
     font-size: 13px;
+    word-break: break-all;
 }
 
 .history-item .res {
@@ -456,6 +460,7 @@ body {
     font-size: 28px;
     font-weight: 500;
     color: #f2f6ff;
+    word-break: break-all;
 }
 
 .history-item time {
